@@ -96,6 +96,63 @@ export async function appendImageAsPage(
   });
 }
 
+/**
+ * Helvetica / StandardFonts only support WinAnsi. Map symbols outside that
+ * encoding to ASCII so drawText does not throw (e.g. "→" / U+2192).
+ * Curly quotes, dashes, and Windows-1252 extras are kept — pdf-lib maps them.
+ */
+const WINANSI_REPLACEMENTS: Record<string, string> = {
+  "\u2190": "<-",
+  "\u2191": "^",
+  "\u2192": "->",
+  "\u2193": "v",
+  "\u21D0": "<=",
+  "\u21D2": "=>",
+  "\u2212": "-",
+  "\u2260": "!=",
+  "\u2264": "<=",
+  "\u2265": ">=",
+  "\u200B": "",
+  "\u200C": "",
+  "\u200D": "",
+  "\uFEFF": "",
+};
+
+/**
+ * Unicode code points Helvetica (WinAnsiEncoding) can encode via pdf-lib.
+ * Includes ASCII, Latin-1 Supplement (U+00A0–FF), and Windows-1252 extras.
+ */
+const WINANSI_CODEPOINTS = new Set<number>([
+  0x09, 0x0a, 0x0d,
+  // Windows-1252 C1 replacements (Unicode form, not raw bytes)
+  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030,
+  0x0160, 0x2039, 0x0152, 0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022,
+  0x2013, 0x2014, 0x02dc, 0x2122, 0x0161, 0x203a, 0x0153, 0x017e, 0x0178,
+]);
+
+function isWinAnsiCodePoint(code: number): boolean {
+  if (code >= 0x20 && code <= 0x7e) return true;
+  if (code >= 0xa0 && code <= 0xff) return true;
+  return WINANSI_CODEPOINTS.has(code);
+}
+
+export function toWinAnsiSafe(text: string): string {
+  let out = "";
+  for (const ch of text) {
+    if (Object.prototype.hasOwnProperty.call(WINANSI_REPLACEMENTS, ch)) {
+      out += WINANSI_REPLACEMENTS[ch]!;
+      continue;
+    }
+    const code = ch.codePointAt(0)!;
+    if (code > 0xffff) {
+      out += "?";
+      continue;
+    }
+    out += isWinAnsiCodePoint(code) ? ch : "?";
+  }
+  return out;
+}
+
 function wrapLines(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
   const paragraphs = text.replace(/\r\n/g, "\n").split("\n");
   const lines: string[] = [];
@@ -150,12 +207,15 @@ export async function appendTextAsPages(
   const pageWidth = A4.width;
   const pageHeight = A4.height;
   const maxWidth = pageWidth - margin * 2;
-  const usableHeight = pageHeight - margin * 2;
 
-  const body = text.length > 200_000 ? `${text.slice(0, 200_000)}\n\n[Truncated…]` : text;
+  const rawBody =
+    text.length > 200_000
+      ? `${text.slice(0, 200_000)}\n\n[Truncated...]`
+      : text;
+  const body = toWinAnsiSafe(rawBody);
   const lines = wrapLines(body, font, fontSize, maxWidth);
   const titleLines = options.title
-    ? wrapLines(options.title, bold, 14, maxWidth)
+    ? wrapLines(toWinAnsiSafe(options.title), bold, 14, maxWidth)
     : [];
 
   let lineIndex = 0;

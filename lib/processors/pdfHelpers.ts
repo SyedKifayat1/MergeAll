@@ -33,21 +33,42 @@ export function addBlankPage(
   return doc.addPage([size.width, size.height]);
 }
 
-/** Normalize image to PNG/JPEG bytes suitable for pdf-lib embedding. */
+function isJpegBuffer(bytes: Buffer): boolean {
+  return (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  );
+}
+
+/**
+ * Re-encode images for pdf-lib. Always use a fresh sharp() pipeline —
+ * reusing an instance after metadata() can yield corrupt JPEG bytes
+ * ("SOI not found in JPEG" from embedJpg).
+ */
 export async function normalizeImage(
   buffer: Buffer
 ): Promise<{ bytes: Buffer; kind: "png" | "jpg"; width: number; height: number }> {
-  const image = sharp(buffer, { failOn: "none" }).rotate();
-  const meta = await image.metadata();
+  const meta = await sharp(buffer, { failOn: "none" }).metadata();
   const width = meta.width ?? 1;
   const height = meta.height ?? 1;
 
-  if (meta.format === "jpeg") {
-    const bytes = await image.jpeg({ quality: 90 }).toBuffer();
-    return { bytes, kind: "jpg", width, height };
+  // Prefer JPEG for smaller PDFs when the source is already JPEG-like.
+  if (meta.format === "jpeg" || meta.format === "jpg") {
+    const bytes = await sharp(buffer, { failOn: "none" })
+      .rotate()
+      .jpeg({ quality: 90 })
+      .toBuffer();
+    if (isJpegBuffer(bytes)) {
+      return { bytes, kind: "jpg", width, height };
+    }
   }
 
-  const bytes = await image.png().toBuffer();
+  const bytes = await sharp(buffer, { failOn: "none" })
+    .rotate()
+    .png()
+    .toBuffer();
   return { bytes, kind: "png", width, height };
 }
 
@@ -61,10 +82,21 @@ export async function appendImageAsPage(
 ): Promise<void> {
   const { pageSize = "fit", orientation = "auto" } = options;
   const normalized = await normalizeImage(buffer);
-  const embedded =
-    normalized.kind === "jpg"
-      ? await doc.embedJpg(normalized.bytes)
-      : await doc.embedPng(normalized.bytes);
+
+  let embedded;
+  if (normalized.kind === "jpg" && isJpegBuffer(normalized.bytes)) {
+    try {
+      embedded = await doc.embedJpg(normalized.bytes);
+    } catch {
+      // pdf-lib is strict; fall back to PNG if JPEG parse fails.
+      const pngBytes = await sharp(normalized.bytes, { failOn: "none" })
+        .png()
+        .toBuffer();
+      embedded = await doc.embedPng(pngBytes);
+    }
+  } else {
+    embedded = await doc.embedPng(normalized.bytes);
+  }
 
   let pageWidth: number;
   let pageHeight: number;

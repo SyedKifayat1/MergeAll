@@ -55,7 +55,7 @@ export async function normalizeImage(
   const height = meta.height ?? 1;
 
   // Prefer JPEG for smaller PDFs when the source is already JPEG-like.
-  if (meta.format === "jpeg" || meta.format === "jpg") {
+  if (meta.format === "jpeg") {
     const bytes = await sharp(buffer, { failOn: "none" })
       .rotate()
       .jpeg({ quality: 90 })

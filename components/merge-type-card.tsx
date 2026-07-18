@@ -55,7 +55,7 @@ export function MergeTypeCard({ type, index }: MergeTypeCardProps) {
         </div>
         {type.requiresWorker ? (
           <span className="mt-auto text-xs text-muted-foreground">
-            Processed via secure media worker
+            Server ffmpeg processing
           </span>
         ) : (
           <span className="mt-auto text-xs text-muted-foreground">

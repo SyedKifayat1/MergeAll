@@ -5,7 +5,12 @@ export const IMPLEMENTED_SYNC_TYPES = new Set<MergeTypeId>([
   "any-to-pdf",
   "pdf",
   "images-to-pdf",
+  "docx",
+  "xlsx",
+  "pptx",
   "text",
+  "audio",
+  "video",
 ]);
 
 export function isSyncMergeReady(type: MergeTypeId): boolean {

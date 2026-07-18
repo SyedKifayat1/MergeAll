@@ -73,7 +73,7 @@ export default async function MergeToolPage({ params }: PageProps) {
               <Badge variant="default">Recommended</Badge>
             ) : null}
             {config.requiresWorker ? (
-              <Badge variant="secondary">Media worker</Badge>
+              <Badge variant="secondary">ffmpeg</Badge>
             ) : null}
           </div>
           <p className="mt-2 text-muted-foreground">{config.description}</p>

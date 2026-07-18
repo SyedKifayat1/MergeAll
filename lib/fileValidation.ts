@@ -8,10 +8,18 @@ const EXT_MIME: Record<string, string> = {
   ".webp": "image/webp",
   ".docx":
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx":
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".pptx":
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ".txt": "text/plain",
   ".md": "text/markdown",
   ".markdown": "text/markdown",
   ".csv": "text/csv",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
 };
 
 /** Magic-byte / extension checks for common merge inputs. */
@@ -46,16 +54,47 @@ export function sniffMimeType(
   ) {
     return "image/webp";
   }
+  // WAV
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WAVE"
+  ) {
+    return "audio/wav";
+  }
+  // MP3: ID3 tag or MPEG frame sync on .mp3
+  if (buffer.length >= 3 && buffer.subarray(0, 3).toString("ascii") === "ID3") {
+    return "audio/mpeg";
+  }
+  if (
+    path.extname(filename).toLowerCase() === ".mp3" &&
+    buffer.length >= 2 &&
+    buffer[0] === 0xff &&
+    (buffer[1]! & 0xe0) === 0xe0
+  ) {
+    return "audio/mpeg";
+  }
+  // MP4 / MOV (ftyp box)
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(4, 8).toString("ascii") === "ftyp"
+  ) {
+    const brand = buffer.subarray(8, 12).toString("ascii");
+    if (
+      brand.startsWith("qt") ||
+      brand === "qt  " ||
+      path.extname(filename).toLowerCase() === ".mov"
+    ) {
+      return "video/quicktime";
+    }
+    return "video/mp4";
+  }
   // ZIP-based Office formats
   if (buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b) {
     const ext = path.extname(filename).toLowerCase();
     if (ext === ".docx") return EXT_MIME[".docx"]!;
-    if (ext === ".xlsx") {
-      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    }
-    if (ext === ".pptx") {
-      return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-    }
+    if (ext === ".xlsx") return EXT_MIME[".xlsx"]!;
+    if (ext === ".pptx") return EXT_MIME[".pptx"]!;
   }
 
   const ext = path.extname(filename).toLowerCase();

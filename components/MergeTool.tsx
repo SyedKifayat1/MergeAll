@@ -134,11 +134,7 @@ export function MergeTool({ config }: MergeToolProps) {
 
   async function handleMerge() {
     if (!canMerge) {
-      if (!ready) {
-        toast.error(
-          "This merge type is not ready yet. Use Any → PDF, PDF, Images → PDF, or Text."
-        );
-      } else if (items.length < config.minFiles) {
+      if (items.length < config.minFiles) {
         toast.error(`Add at least ${config.minFiles} files.`);
       }
       return;
@@ -238,20 +234,6 @@ export function MergeTool({ config }: MergeToolProps) {
 
   return (
     <div className="mt-10 space-y-6">
-      {!ready && (
-        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          Native merge for this format is coming soon. For mixed PDFs, images,
-          Word, and text → one PDF, use{" "}
-          <a
-            href="/merge/any-to-pdf"
-            className="font-medium text-brand underline-offset-2 hover:underline"
-          >
-            Any → PDF
-          </a>
-          .
-        </div>
-      )}
-
       <UploadDropzone
         config={config}
         disabled={busy}
@@ -293,8 +275,9 @@ export function MergeTool({ config }: MergeToolProps) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Files are automatically deleted after processing and are never used for
-        anything else.
+        {config.requiresWorker
+          ? "Audio and video are processed securely on the server with ffmpeg, then discarded."
+          : "Files are automatically deleted after processing and are never used for anything else."}
       </p>
     </div>
   );

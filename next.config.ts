@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["sharp", "mammoth"],
+  serverExternalPackages: [
+    "sharp",
+    "mammoth",
+    "exceljs",
+    "jszip",
+    "ffmpeg-static",
+    "fluent-ffmpeg",
+  ],
   experimental: {
     serverActions: {
       bodySizeLimit: "100mb",

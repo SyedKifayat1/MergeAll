@@ -10,7 +10,7 @@ import { sniffMimeType, isAllowedExtension } from "@/lib/fileValidation";
 import { sanitizeFilename } from "@/lib/processors/pdfHelpers";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function parseOptions(raw: string | null): Record<string, boolean | string | number> {
   if (!raw) return {};
@@ -50,12 +50,7 @@ export async function POST(request: Request) {
 
     if (!isSyncMergeReady(type)) {
       return NextResponse.json(
-        {
-          error:
-            type === "audio" || type === "video"
-              ? "Audio/video merge needs the ffmpeg worker (coming soon)."
-              : "This merge type is not available yet. Try Any → PDF, PDF, Images → PDF, or Text.",
-        },
+        { error: "This merge type is not available." },
         { status: 501 }
       );
     }
